@@ -69,39 +69,9 @@ new_PM_df = world.cities %>% group_by(name) %>% summarise(citymeanlat = mean(lat
   left_join(x = new_PM_df, y =  ., by = c("citymatch" = "name"))
 
 #To do >
-
-
-leaflet(data = new_PM_df) %>% addTiles() %>% addMarkers(~meanlong, ~meanlat, popup = ~as.character(countrymatch), label = ~as.character(countrymatch), clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE))
-
 leaflet(data = new_PM_df) %>% addTiles() %>% addMarkers(~citymeanlong, ~citymeanlat, popup = ~as.character(citymatch), label = ~as.character(citymatch), clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE))
 
 
-new_PM_df %>% select(jabbrv ,journal) %>% group_by(jabbrv ,journal) %>% tally(sort = TRUE)
-
-
-# Define UI for application that draws a histogram
-ui <- fluidPage(
-   
-   # Application title
-   titlePanel("PubMap: Visualize your PubMed search on the map"),
-   
-   # Sidebar with a slider input for number of bins 
-   sidebarLayout(
-      sidebarPanel(
-        textInput("text", label = h3("Pubmed search"), value = 'lipidomics AND "2019"[PDAT]&retmax=10&tool=pubmap&email=testuser1@live.com'),   hr(),
-        fluidRow(verbatimTextOutput("value"))
-      ),
-      
-      mainPanel(
-        DT::dataTableOutput("table")
-   )
-   
-
-   ),
-   
-   hr(),
-   leafletOutput("mymap")
-)
 
 ui <- fixedPage(
   
@@ -111,7 +81,7 @@ ui <- fixedPage(
     column(3,
                     textInput(inputId = "pubmedsearch", label = "Pubmed search", value = 'lipidomics'), hr(),
                     textInput(inputId = "year", label = "Publication year", value = '2019'), hr(),
-                    submitButton(text = "Submit")
+                    actionButton("start", "Submit")
     ),
     column(9, verticalLayout(DT::dataTableOutput("table"), hr() , leafletOutput("mymap"), fluid = FALSE)
     )
@@ -119,8 +89,8 @@ ui <- fixedPage(
 )
 
 # Define server logic required to draw a histogram
-server <- function(input, output) {
-   
+server <- function(input, output, session) {
+
   # You can access the value of the widget with input$text, e.g.
   output$value <- renderPrint({ input$text })
   
