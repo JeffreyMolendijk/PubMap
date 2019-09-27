@@ -6,6 +6,7 @@
 #
 #    http://shiny.rstudio.com/
 #
+rm(list = ls())
 
 library(shiny)
 library(leaflet)
@@ -16,16 +17,30 @@ library(maps)
 
 #Load world cities to match against author affiliation > this dataset already contains lattitude and longitude
 data("world.cities")
-## For keywords make table of most commonly published journals. 
 
-
+pmquery = function(key, year, tool, email){
+  pmsearch = paste(key," AND ", year, "[PDAT]&tool=", tool, "&email=", email ,sep = "")
+  return(pmsearch)
+}
 
 #collect pubmed ids using easypubmeds get_pubmed_ids
 #function does not allow a maximum list over 100, but the search string can be modified using &retmax=100 to increase to 100.
 #the following search finds the top 
 #my_entrez_id <- get_pubmed_ids('lipidomics AND "2019"[PDAT]&retmax=10&tool=pubmap&email=testuser1@live.com')
 #my_entrez_id <- get_pubmed_ids('lipidomics microbiome AND "2010"[PDAT]:"2019"[PDAT]&retmax=10&tool=pubmap&email=testuser1@live.com')
-my_entrez_id <- get_pubmed_ids('"learning analytics"&retmax=10&tool=pubmap&email=testuser1@live.com')
+#my_entrez_id <- get_pubmed_ids('"learning analytics"&tool=pubmap&email=testuser1@live.com')
+
+pmsearch.key = '"learning analytics"'
+pmsearch.year = '"2019"'
+pmsearch.tool = 'pubmap'
+pmsearch.email = 'testuser1@live.com'
+
+search = pmquery(pmsearch.key, pmsearch.year, pmsearch.tool, pmsearch.email)
+search
+
+my_entrez_id <- get_pubmed_ids(search)
+
+
 
 my_entrez_data <- fetch_pubmed_data(my_entrez_id)
 
@@ -37,6 +52,8 @@ new_PM_df <- table_articles_byAuth(pubmed_data = my_entrez_data,
 new_PM_df$newaddress <- new_PM_df$address %>% gsub("[[:punct:]]","", .) %>% strsplit(split = " ")
 
 new_PM_df$countrymatch = "NULL"
+new_PM_df$citymatch = "NULL"
+
 
 for(i in 1:nrow(new_PM_df)){
 
@@ -46,21 +63,17 @@ for(i in 1:nrow(new_PM_df)){
   if(is.null(country)){country = "NULL"}
   
   new_PM_df$countrymatch[i] = country
-    
-}
-
-new_PM_df$citymatch = "NULL"
-
-for(i in 1:nrow(new_PM_df)){
+  
   
   city = (world.cities$name %in% (new_PM_df$newaddress[i] %>% unlist)) %>% world.cities$name[.] %>% 
     table %>% sort(., decreasing = TRUE) %>% head(1) %>% names()
   
   if(is.null(city)){city = "NULL"}
   
-  new_PM_df$citymatch[i] = city
-  
+  new_PM_df$citymatch[i] = city  
 }
+
+
 
 new_PM_df = world.cities %>% group_by(country.etc) %>% summarise(meanlat = mean(lat), meanlong = mean(long)) %>% 
             left_join(x = new_PM_df, y =  ., by = c("countrymatch" = "country.etc"))
@@ -79,9 +92,11 @@ ui <- fixedPage(
   
   fixedRow(
     column(3,
-                    textInput(inputId = "pubmedsearch", label = "Pubmed search", value = 'lipidomics'), hr(),
+                    textInput(inputId = "pubmedsearch", label = "Pubmed search", value = '"lipidomics"'), hr(),
                     textInput(inputId = "year", label = "Publication year", value = '2019'), hr(),
-                    actionButton("start", "Submit")
+                    textInput(inputId = "email", label = "Your email", value = 'testuser1@live.com'), hr(),
+                    actionButton("start", "Submit"), hr(),
+                    textOutput(outputId = "value")
     ),
     column(9, verticalLayout(DT::dataTableOutput("table"), hr() , leafletOutput("mymap"), fluid = FALSE)
     )
@@ -92,7 +107,7 @@ ui <- fixedPage(
 server <- function(input, output, session) {
 
   # You can access the value of the widget with input$text, e.g.
-  output$value <- renderPrint({ input$text })
+  output$value <- renderPrint({ paste("your PubMed search is: ",pmquery(input$pubmedsearch, input$year, pmsearch.tool, input$email), input$year, sep = "") })
   
   output$table <- DT::renderDataTable( {new_PM_df %>% select(jabbrv ,journal) %>% group_by(jabbrv ,journal) %>% tally(sort = TRUE) %>% DT::datatable(., options = list(scrollY = "300px", paging = FALSE, searching = FALSE, lengthChange = FALSE))} )
   
