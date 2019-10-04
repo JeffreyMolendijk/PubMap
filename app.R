@@ -119,15 +119,30 @@ server <- function(input, output, session) {
   # You can access the value of the widget with input$text, e.g.
   observeEvent(eventExpr = input$start, handlerExpr = output$value <- renderPrint({ paste("your PubMed search is: ",pmquery(input$pubmedsearch, input$year, pmsearch.tool, input$email), input$year, sep = "") }) )
   
-  observeEvent(eventExpr = input$start, handlerExpr =  {search = pmquery(input$pubmedsearch, input$year, pmsearch.tool, input$email)
+  observeEvent(eventExpr = input$start, handlerExpr =  {
+  
+    progress <- Progress$new(session, min=1, max=3)
+    on.exit(progress$close())
+    
+    progress$set(value = 1, 
+                 message = 'Contacting PubMed',
+                 detail = 'This may take a while...')
+    
+  search = pmquery(input$pubmedsearch, input$year, pmsearch.tool, input$email)
   my_entrez_id <- get_pubmed_ids(search)
   
   my_entrez_data <- fetch_pubmed_data(my_entrez_id)
+  
+  progress$set(value = 2, 
+               message = 'Analyzing PubMed results',
+               detail = paste('This may take a while... I found ', my_entrez_id$Count, 'results!'))
   
   new_PM_df <- table_articles_byAuth(pubmed_data = my_entrez_data, 
                                      included_authors = "first", 
                                      max_chars = 0, 
                                      encoding = "ASCII")
+  
+  
   
   new_PM_df$newaddress <- new_PM_df$address %>% gsub("[[:punct:]]","", .) %>% strsplit(split = " ")
   
@@ -161,11 +176,16 @@ server <- function(input, output, session) {
     left_join(x = new_PM_df, y =  ., by = c("citymatch" = "name"))
   
   print("Done")
+  
+  progress$set(value = 3, 
+               message = 'We are done!',
+               detail = 'This may not take a while...')
+  
+  new_PM_df <<- new_PM_df
+  
   }
                
 )
-  
-  
   
   observeEvent(eventExpr = input$plot, handlerExpr = output$table <- DT::renderDataTable( {new_PM_df %>% select(jabbrv ,journal) %>% group_by(jabbrv ,journal) %>% tally(sort = TRUE) %>% DT::datatable(., options = list(scrollY = "300px", paging = FALSE, searching = FALSE, lengthChange = FALSE))} ) )
   
