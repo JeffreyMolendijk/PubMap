@@ -9,6 +9,7 @@
 rm(list = ls())
 
 library(shiny)
+library(shinythemes)
 library(leaflet)
 library(easyPubMed)
 library(XML)
@@ -85,28 +86,32 @@ new_PM_df = world.cities %>% group_by(name) %>% summarise(citymeanlat = mean(lat
 leaflet(data = new_PM_df) %>% addTiles() %>% addMarkers(~citymeanlong, ~citymeanlat, popup = ~as.character(citymatch), label = ~as.character(citymatch), clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE))
 
 
+#Keyword analysis
+new_PM_df$keywords %>% strsplit(., split = ";") %>% unlist %>% tolower() %>% 
+  as.data.frame() %>% rlang::set_names("keyword") %>% 
+  group_by(keyword) %>% summarise(counts = n()) %>% filter(!is.na(counts)) %>% arrange(desc(counts)) %>% View
 
 
 
 
 
-
-ui <- fixedPage(
-  
-  titlePanel("PubMap: Visualize your PubMed search on the map"),
+ui <- navbarPage("PubMap, for confused researchers!",
+  tabPanel("Analysis",
   
   fixedRow(
     column(3,
                     textInput(inputId = "pubmedsearch", label = "Pubmed search", value = '"learning analytics"'), hr(),
                     textInput(inputId = "year", label = "Publication year", value = '2019'), hr(),
                     textInput(inputId = "email", label = "Your email", value = 'testuser1@live.com'), hr(),
-                    actionButton("start", "Submit"), hr(),
-                    actionButton("plot", "Plot"), hr(),
-                    textOutput(outputId = "value")
+                    actionButton("start", "Submit")
     ),
     column(9, verticalLayout(DT::dataTableOutput("table"), hr() , leafletOutput("mymap"), fluid = FALSE)
     )
-  )
+  )),
+  tabPanel("README",
+           fixedRow(column(12, includeMarkdown("README.md"))
+             
+           ))
 )
 
 
@@ -117,8 +122,6 @@ ui <- fixedPage(
 server <- function(input, output, session) {
 
   # You can access the value of the widget with input$text, e.g.
-  observeEvent(eventExpr = input$start, handlerExpr = output$value <- renderPrint({ paste("your PubMed search is: ",pmquery(input$pubmedsearch, input$year, pmsearch.tool, input$email), input$year, sep = "") }) )
-  
   observeEvent(eventExpr = input$start, handlerExpr =  {
   
     progress <- Progress$new(session, min=1, max=3)
@@ -128,7 +131,7 @@ server <- function(input, output, session) {
                  message = 'Contacting PubMed',
                  detail = 'This may take a while...')
     
-  search = pmquery(input$pubmedsearch, input$year, pmsearch.tool, input$email)
+  search = pmquery(input$pubmedsearch, input$year, 'pubmap', input$email)
   my_entrez_id <- get_pubmed_ids(search)
   
   my_entrez_data <- fetch_pubmed_data(my_entrez_id)
@@ -187,9 +190,9 @@ server <- function(input, output, session) {
                
 )
   
-  observeEvent(eventExpr = input$plot, handlerExpr = output$table <- DT::renderDataTable( {new_PM_df %>% select(jabbrv ,journal) %>% group_by(jabbrv ,journal) %>% tally(sort = TRUE) %>% DT::datatable(., options = list(scrollY = "300px", paging = FALSE, searching = FALSE, lengthChange = FALSE))} ) )
+  observeEvent(eventExpr = input$start, handlerExpr = output$table <- DT::renderDataTable( {new_PM_df %>% select(jabbrv ,journal) %>% group_by(jabbrv ,journal) %>% tally(sort = TRUE) %>% DT::datatable(., options = list(scrollY = "300px", paging = FALSE, searching = FALSE, lengthChange = FALSE))} ) )
   
-  observeEvent(eventExpr = input$plot, handlerExpr = output$mymap <- renderLeaflet({
+  observeEvent(eventExpr = input$start, handlerExpr = output$mymap <- renderLeaflet({
     leaflet(data = new_PM_df) %>% addTiles() %>% addMarkers(~meanlong, ~meanlat, popup = ~as.character(countrymatch), label = ~as.character(countrymatch), clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE))
   }) )
 }
