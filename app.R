@@ -24,6 +24,78 @@ pmquery = function(key, year, tool, email){
   return(pmsearch)
 }
 
+chopchop_to_df = function (pubmed_data, included_authors = "all", max_chars = 500, 
+          autofill = TRUE, dest_file = NULL, getKeywords = TRUE, encoding = "UTF8") 
+{
+  if (!included_authors %in% c("all", "first", 
+                               "last")) 
+    stop("Method is not supported!")
+  message("Processing PubMed data ", appendLF = FALSE)
+  paper.data <- pubmed_data
+  expFields <- c("pmid", "doi", "title", 
+                 "abstract", "year", "month", "day", 
+                 "jabbrv", "journal", "keywords", "lastname", 
+                 "firstname", "address", "email")
+  papers.authors.list <- lapply(1:length(paper.data), (function(i) {
+    if (length(paper.data) > 50) {
+      rep.dot <- as.integer(seq(1, length(paper.data), 
+                                length.out = 50))
+      if (i %in% rep.dot) 
+        message(".", appendLF = FALSE)
+    }
+    else {
+      message(".", appendLF = FALSE)
+    }
+    art <- paper.data[[i]]
+    out <- tryCatch({
+      article_to_df(pubmedArticle = art, autofill = autofill, 
+                    max_chars = max_chars, getKeywords = getKeywords, 
+                    getAuthors = TRUE)
+    }, error = function(e) {
+      NULL
+    })
+    if (is.null(out)) {
+      out <- data.frame(pmid = NA, doi = NA, title = NA, 
+                        abstract = NA, year = NA, month = NA, day = NA, 
+                        jabbrv = NA, journal = NA, keywords = NA, lastname = NA, 
+                        firstname = NA, address = NA, email = NA)
+    }
+    if (included_authors == "first") {
+      out <- out[1, ]
+    }
+    else if (included_authors == "last") {
+      out <- out[nrow(out), ]
+    }
+    out2 <- data.frame(rebuild = (1:nrow(out)))
+    for (jj in 1:length(expFields)) {
+      if (expFields[jj] %in% names(out)) {
+        out2[, expFields[jj]] <- out[, expFields[jj]]
+      }
+      else {
+        out2[, expFields[jj]] <- NA
+      }
+    }
+    out2[, -1]
+  }))
+  message(" done!")
+  papers.authors.df <- do.call(rbind, papers.authors.list)
+  keep.rw <- apply(papers.authors.df, 1, (function(rw) {
+    sum(is.na(rw)) < length(rw)
+  }))
+  papers.authors.df <- papers.authors.df[keep.rw, ]
+  if (!is.null(dest_file)) {
+    if (class(dest_file) == "character" & length(dest_file) == 
+        1) {
+      tryCatch(utils::write.table(papers.authors.df, dest_file, 
+                                  fileEncoding = encoding), error = function(e) {
+                                    NULL
+                                  })
+    }
+  }
+  return(papers.authors.df)
+}
+
+
 #collect pubmed ids using easypubmeds get_pubmed_ids
 #function does not allow a maximum list over 100, but the search string can be modified using &retmax=100 to increase to 100.
 #the following search finds the top 
@@ -31,7 +103,7 @@ pmquery = function(key, year, tool, email){
 #my_entrez_id <- get_pubmed_ids('lipidomics microbiome AND "2010"[PDAT]:"2019"[PDAT]&retmax=10&tool=pubmap&email=testuser1@live.com')
 #my_entrez_id <- get_pubmed_ids('"learning analytics"&tool=pubmap&email=testuser1@live.com')
 
-pmsearch.key = '"learning analytics"'
+pmsearch.key = '"University of Queensland"'
 pmsearch.year = '"2019"'
 pmsearch.tool = 'pubmap'
 pmsearch.email = 'testuser1@live.com'
@@ -41,14 +113,37 @@ search = pmquery(pmsearch.key, pmsearch.year, pmsearch.tool, pmsearch.email)
 
 my_entrez_id <- get_pubmed_ids(search)
 
+my_entrez_data <- fetch_pubmed_data(my_entrez_id, retmax = 1000)
+
+#table_articles_byauth uses articles_to_list as one of the first steps. this would convert a massive list into a single list.
+#Instead we can manually convert large my_entrez_data into smaller chunks, e.g.  1:100.
+#Next we can alter table_articles_byauth to run on testlists (previously converted data)
+
+testlist = articles_to_list(my_entrez_data, encoding = "UTF-8")
+testsplit = split(1:length(testlist), ceiling(seq_along(1:length(testlist))/300) )
+
+length(testsplit)
+
+testlist[testsplit[[1]]] %>% View
+
+resultlist = list()
+
+for(i in 1:length(testsplit)){
+  print(i)
+  
+
+  resultlist[[i]] <- chopchop_to_df(pubmed_data = testlist[testsplit[[i]]], 
+                                included_authors = "first", 
+                                max_chars = 0, 
+                                encoding = "ASCII")
+
+  
+}
+
+new_PM_df = do.call(bind_rows, resultlist)
 
 
-my_entrez_data <- fetch_pubmed_data(my_entrez_id)
 
-new_PM_df <- table_articles_byAuth(pubmed_data = my_entrez_data, 
-                                   included_authors = "first", 
-                                   max_chars = 0, 
-                                   encoding = "ASCII")
 
 new_PM_df$newaddress <- new_PM_df$address %>% gsub("[[:punct:]]","", .) %>% strsplit(split = " ")
 
@@ -124,26 +219,47 @@ server <- function(input, output, session) {
   # You can access the value of the widget with input$text, e.g.
   observeEvent(eventExpr = input$start, handlerExpr =  {
   
-    progress <- Progress$new(session, min=1, max=3)
-    on.exit(progress$close())
-    
+    progress <- Progress$new(session, min=1, max=1)
+
     progress$set(value = 1, 
                  message = 'Contacting PubMed',
                  detail = 'This may take a while...')
     
+    
   search = pmquery(input$pubmedsearch, input$year, 'pubmap', input$email)
   my_entrez_id <- get_pubmed_ids(search)
   
-  my_entrez_data <- fetch_pubmed_data(my_entrez_id)
+  my_entrez_data <- fetch_pubmed_data(my_entrez_id, retmax = 900)
   
-  progress$set(value = 2, 
-               message = 'Analyzing PubMed results',
-               detail = paste('This may take a while... I found ', my_entrez_id$Count, 'results!'))
+  progress$close()
   
-  new_PM_df <- table_articles_byAuth(pubmed_data = my_entrez_data, 
-                                     included_authors = "first", 
-                                     max_chars = 0, 
-                                     encoding = "ASCII")
+
+  #This part creates the results data frame, but splits the task into chunks of 100.
+  testlist = articles_to_list(my_entrez_data, encoding = "UTF-8")
+  testsplit = split(1:length(testlist), ceiling(seq_along(1:length(testlist))/100) )
+  
+  resultlist = list()
+  
+  progress <- Progress$new(session, min=1, max=length(testsplit))
+  on.exit(progress$close())
+  
+  for(i in 1:length(testsplit)){
+
+    
+    progress$set(value = i, 
+                 message = 'Analyzing PubMed results',
+                 detail = paste('This may take a while... I found ', my_entrez_id$Count, 'results!'))
+    
+    
+    resultlist[[i]] <- chopchop_to_df(pubmed_data = testlist[testsplit[[i]]], 
+                                      included_authors = "first", 
+                                      max_chars = 0, 
+                                      encoding = "ASCII")
+    
+    
+  }
+  
+  new_PM_df = do.call(bind_rows, resultlist)
   
   
   
@@ -179,10 +295,6 @@ server <- function(input, output, session) {
     left_join(x = new_PM_df, y =  ., by = c("citymatch" = "name"))
   
   print("Done")
-  
-  progress$set(value = 3, 
-               message = 'We are done!',
-               detail = 'This may not take a while...')
   
   new_PM_df <<- new_PM_df
   
