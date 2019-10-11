@@ -16,7 +16,8 @@ Please use one of the following options to run PubMap:
 
 ## Result interpretation
 PubMap performs a PubMed search using the search parameters provided and analyzes the author affiliations of the results.
-Pubmap displays a table of scientific journals which have published research articles related to your topic of interest. 
+PubMap displays a table of scientific journals which have published research articles related to your topic of interest. 
+PubMap displays a table of keywords related to your PubMed search.
 PubMap generates a Leaflet map, indicating the countries, cities or institutes which frequently publish articles related to the search topic.
 
 ## Current limitations
