@@ -103,7 +103,7 @@ chopchop_to_df = function (pubmed_data, included_authors = "all", max_chars = 50
 #my_entrez_id <- get_pubmed_ids('lipidomics microbiome AND "2010"[PDAT]:"2019"[PDAT]&retmax=10&tool=pubmap&email=testuser1@live.com')
 #my_entrez_id <- get_pubmed_ids('"learning analytics"&tool=pubmap&email=testuser1@live.com')
 
-pmsearch.key = '"University of Queensland"'
+pmsearch.key = '"learning analytics"'
 pmsearch.year = '"2019"'
 pmsearch.tool = 'pubmap'
 pmsearch.email = 'testuser1@live.com'
@@ -121,10 +121,6 @@ my_entrez_data <- fetch_pubmed_data(my_entrez_id, retmax = 1000)
 
 testlist = articles_to_list(my_entrez_data, encoding = "UTF-8")
 testsplit = split(1:length(testlist), ceiling(seq_along(1:length(testlist))/300) )
-
-length(testsplit)
-
-testlist[testsplit[[1]]] %>% View
 
 resultlist = list()
 
@@ -186,6 +182,16 @@ new_PM_df$keywords %>% strsplit(., split = ";") %>% unlist %>% tolower() %>%
   as.data.frame() %>% rlang::set_names("keyword") %>% 
   group_by(keyword) %>% summarise(counts = n()) %>% filter(!is.na(counts)) %>% arrange(desc(counts)) %>% View
 
+DT::renderDataTable( {new_PM_df$keywords %>% strsplit(., split = ";") %>% unlist %>% tolower() %>% 
+    as.data.frame() %>% rlang::set_names("keyword") %>% 
+    group_by(keyword) %>% summarise(counts = n()) %>% filter(!is.na(counts)) %>% arrange(desc(counts)) %>% DT::datatable(., options = list(scrollY = "300px", paging = FALSE, searching = FALSE, lengthChange = FALSE))} ) 
+
+
+
+
+
+
+
 
 
 
@@ -200,7 +206,7 @@ ui <- navbarPage("PubMap, for confused researchers!",
                     textInput(inputId = "email", label = "Your email", value = 'testuser1@live.com'), hr(),
                     actionButton("start", "Submit")
     ),
-    column(9, verticalLayout(DT::dataTableOutput("table"), hr() , leafletOutput("mymap"), fluid = FALSE)
+    column(9, verticalLayout(DT::dataTableOutput("table"), DT::dataTableOutput("tablekeyword"), hr() , leafletOutput("mymap"), fluid = FALSE)
     )
   )),
   tabPanel("README",
@@ -304,6 +310,8 @@ server <- function(input, output, session) {
   
   observeEvent(eventExpr = input$start, handlerExpr = output$table <- DT::renderDataTable( {new_PM_df %>% select(jabbrv ,journal) %>% group_by(jabbrv ,journal) %>% tally(sort = TRUE) %>% DT::datatable(., options = list(scrollY = "300px", paging = FALSE, searching = FALSE, lengthChange = FALSE))} ) )
   
+  observeEvent(eventExpr = input$start, handlerExpr = output$tablekeyword <- DT::renderDataTable( {new_PM_df$keywords %>% strsplit(., split = ";") %>% unlist %>% tolower() %>% as.data.frame() %>% rlang::set_names("keyword") %>% group_by(keyword) %>% summarise(counts = n()) %>% filter(!is.na(counts)) %>% arrange(desc(counts)) %>% DT::datatable(., options = list(scrollY = "300px", paging = FALSE, searching = FALSE, lengthChange = FALSE))} )) 
+      
   observeEvent(eventExpr = input$start, handlerExpr = output$mymap <- renderLeaflet({
     leaflet(data = new_PM_df) %>% addTiles() %>% addMarkers(~meanlong, ~meanlat, popup = ~as.character(countrymatch), label = ~as.character(countrymatch), clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE))
   }) )
