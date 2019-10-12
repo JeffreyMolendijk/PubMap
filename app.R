@@ -15,6 +15,7 @@ library(easyPubMed)
 library(XML)
 library(dplyr)
 library(maps)
+library(shinydashboard)
 
 #Load world cities to match against author affiliation > this dataset already contains lattitude and longitude
 data("world.cities")
@@ -177,10 +178,6 @@ new_PM_df = world.cities %>% group_by(name) %>% summarise(citymeanlat = mean(lat
 leaflet(data = new_PM_df) %>% addTiles() %>% addMarkers(~citymeanlong, ~citymeanlat, popup = ~as.character(citymatch), label = ~as.character(citymatch), clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE))
 
 
-#Keyword analysis
-new_PM_df$keywords %>% strsplit(., split = ";") %>% unlist %>% tolower() %>% 
-  as.data.frame() %>% rlang::set_names("keyword") %>% 
-  group_by(keyword) %>% summarise(counts = n()) %>% filter(!is.na(counts)) %>% arrange(desc(counts)) %>% View
 
 
 
@@ -191,27 +188,23 @@ new_PM_df$keywords %>% strsplit(., split = ";") %>% unlist %>% tolower() %>%
 
 
 
-ui <- navbarPage("PubMap, for confused researchers!",
-  tabPanel("Analysis",
+
+ui <- dashboardPage(
+  dashboardHeader(title = "PubMap"),
+  dashboardSidebar(sidebarMenu(menuItem("Read me", tabName = "README", icon = icon("readme")),
+                               menuItem("Analysis", tabName = "Analysis", icon = icon("chart-bar")), hr()),
+                   textInput(inputId = "pubmedsearch", label = "Pubmed search", value = '"learning analytics"'), 
+                   textInput(inputId = "year", label = "Publication year", value = '2019'),
+                   textInput(inputId = "email", label = "Your email", value = 'testuser1@live.com'),
+                   actionButton("start", "Submit")),
+  dashboardBody(
+    tabItems(
+      tabItem(tabName = "Analysis", verticalLayout(tabBox(width = 12, title = "Table results", tabPanel("Journals", DT::dataTableOutput("table")), tabPanel("Keywords", DT::dataTableOutput("tablekeyword"))), hr() , 
+                                                   tabBox(width = 12, title = "Map results", tabPanel("Per country", leafletOutput("mymap")), tabPanel("Per city", leafletOutput("mymapcity"))), fluid = FALSE)),
+      tabItem(tabName = "README", includeMarkdown("README.md"))
+    ))
   
-  fixedRow(
-    column(3,
-                    textInput(inputId = "pubmedsearch", label = "Pubmed search", value = '"learning analytics"'), hr(),
-                    textInput(inputId = "year", label = "Publication year", value = '2019'), hr(),
-                    textInput(inputId = "email", label = "Your email", value = 'testuser1@live.com'), hr(),
-                    actionButton("start", "Submit")
-    ),
-    column(9, verticalLayout(DT::dataTableOutput("table"), DT::dataTableOutput("tablekeyword"), hr() , leafletOutput("mymap"), fluid = FALSE)
-    )
-  )),
-  tabPanel("README",
-           fixedRow(column(12, includeMarkdown("README.md"))
-             
-           ))
 )
-
-
-
 
 
 # Define server logic required to draw a histogram
@@ -310,7 +303,12 @@ server <- function(input, output, session) {
   observeEvent(eventExpr = input$start, handlerExpr = output$mymap <- renderLeaflet({
     leaflet(data = new_PM_df) %>% addTiles() %>% addMarkers(~meanlong, ~meanlat, popup = ~as.character(countrymatch), label = ~as.character(countrymatch), clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE))
   }) )
+  
+  observeEvent(eventExpr = input$start, handlerExpr = output$mymapcity <- renderLeaflet({
+    leaflet(data = new_PM_df) %>% addTiles() %>% addMarkers(~citymeanlong, ~citymeanlat, popup = ~as.character(citymatch), label = ~as.character(citymatch), clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE))
+  }) )
 }
+
 
 # Run the application 
 shinyApp(ui = ui, server = server)

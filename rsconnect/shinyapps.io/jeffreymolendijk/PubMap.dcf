@@ -1,0 +1,13 @@
+name: PubMap
+title: PubMap
+username:
+account: jeffreymolendijk
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1293450
+bundleId: 2494125
+url: https://jeffreymolendijk.shinyapps.io/PubMap/
+when: 1570885134.99991
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData
