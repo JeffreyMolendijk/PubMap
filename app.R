@@ -114,6 +114,9 @@ search = pmquery(pmsearch.key, pmsearch.year, pmsearch.tool, pmsearch.email)
 
 my_entrez_id <- get_pubmed_ids(search)
 
+my_entrez_id$Count
+my_entrez_id$QueryTranslation %>% print(quote = FALSE)
+
 my_entrez_data <- fetch_pubmed_data(my_entrez_id, retmax = 1000)
 
 #table_articles_byauth uses articles_to_list as one of the first steps. this would convert a massive list into a single list.
@@ -189,22 +192,7 @@ leaflet(data = new_PM_df) %>% addTiles() %>% addMarkers(~citymeanlong, ~citymean
 
 
 
-ui <- dashboardPage(
-  dashboardHeader(title = "PubMap"),
-  dashboardSidebar(sidebarMenu(menuItem("Read me", tabName = "README", icon = icon("readme")),
-                               menuItem("Analysis", tabName = "Analysis", icon = icon("chart-bar")), hr()),
-                   textInput(inputId = "pubmedsearch", label = "Pubmed search", value = '"learning analytics"'), 
-                   textInput(inputId = "year", label = "Publication year", value = '2019'),
-                   textInput(inputId = "email", label = "Your email", value = 'testuser1@live.com'),
-                   actionButton("start", "Submit")),
-  dashboardBody(
-    tabItems(
-      tabItem(tabName = "Analysis", verticalLayout(tabBox(width = 12, title = "Table results", tabPanel("Journals", DT::dataTableOutput("table")), tabPanel("Keywords", DT::dataTableOutput("tablekeyword"))), hr() , 
-                                                   tabBox(width = 12, title = "Map results", tabPanel("Per country", leafletOutput("mymap")), tabPanel("Per city", leafletOutput("mymapcity"))), fluid = FALSE)),
-      tabItem(tabName = "README", includeMarkdown("README.md"))
-    ))
-  
-)
+
 
 
 # Define server logic required to draw a histogram
@@ -221,7 +209,7 @@ server <- function(input, output, session) {
     
     
   search = pmquery(input$pubmedsearch, input$year, 'pubmap', input$email)
-  my_entrez_id <- get_pubmed_ids(search)
+  my_entrez_id <<- get_pubmed_ids(search)
   
   my_entrez_data <- fetch_pubmed_data(my_entrez_id, retmax = 900)
   
@@ -307,8 +295,30 @@ server <- function(input, output, session) {
   observeEvent(eventExpr = input$start, handlerExpr = output$mymapcity <- renderLeaflet({
     leaflet(data = new_PM_df) %>% addTiles() %>% addMarkers(~citymeanlong, ~citymeanlat, popup = ~as.character(citymatch), label = ~as.character(citymatch), clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE))
   }) )
+  
+  observeEvent(eventExpr = input$start, handlerExpr = output$query <- renderValueBox({valueBox(value = tags$p("Pubmed query", style = "font-size: 50%;"), subtitle = my_entrez_id$QueryTranslation %>% print(quote = FALSE), icon = tags$i(icon("search"), style = "font-size: 75%;"),color = "blue")}) )
+  observeEvent(eventExpr = input$start, handlerExpr = output$resultcount <- renderValueBox({valueBox(value = tags$p("Results found", style = "font-size: 50%;"), subtitle = my_entrez_id$Count, icon = tags$i(icon("list"), style = "font-size: 75%;"),color = "blue")}) )
+  
 }
 
+
+ui <- dashboardPage(
+  dashboardHeader(title = "PubMap"),
+  dashboardSidebar(sidebarMenu(menuItem("Read me", tabName = "README", icon = icon("readme")),
+                               menuItem("Analysis", tabName = "Analysis", icon = icon("chart-bar")), hr()),
+                   textInput(inputId = "pubmedsearch", label = "Pubmed search", value = '"learning analytics"'), 
+                   textInput(inputId = "year", label = "Publication year", value = '2019'),
+                   textInput(inputId = "email", label = "Your email", value = 'testuser1@live.com'),
+                   actionButton("start", "Submit")),
+  dashboardBody(
+    tabItems(
+      tabItem(tabName = "Analysis", verticalLayout(fluidRow( column(8, offset = 0, valueBoxOutput("query", width = 12)), column(4, offset = 0, valueBoxOutput("resultcount", width = 12)) ),
+                                                   tabBox(width = 12, title = "Table results", tabPanel("Journals", DT::dataTableOutput("table")), tabPanel("Keywords", DT::dataTableOutput("tablekeyword"))),
+                                                   tabBox(width = 12, title = "Map results", tabPanel("Per country", leafletOutput("mymap")), tabPanel("Per city", leafletOutput("mymapcity"))), fluid = FALSE)),
+      tabItem(tabName = "README", includeMarkdown("README.md"))
+    ))
+  
+)
 
 # Run the application 
 shinyApp(ui = ui, server = server)
