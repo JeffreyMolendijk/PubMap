@@ -5,9 +5,8 @@ account: jeffreymolendijk
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1293450
-bundleId: 2494125
+bundleId: 2500977
 url: https://jeffreymolendijk.shinyapps.io/PubMap/
-when: 1570885134.99991
+when: 1571116844.06459
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: .RData

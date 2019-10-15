@@ -296,8 +296,8 @@ server <- function(input, output, session) {
     leaflet(data = new_PM_df) %>% addTiles() %>% addMarkers(~citymeanlong, ~citymeanlat, popup = ~as.character(citymatch), label = ~as.character(citymatch), clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE))
   }) )
   
-  observeEvent(eventExpr = input$start, handlerExpr = output$query <- renderValueBox({valueBox(value = tags$p("Pubmed query", style = "font-size: 50%;"), subtitle = my_entrez_id$QueryTranslation %>% print(quote = FALSE), icon = tags$i(icon("search"), style = "font-size: 75%;"),color = "blue")}) )
-  observeEvent(eventExpr = input$start, handlerExpr = output$resultcount <- renderValueBox({valueBox(value = tags$p("Results found", style = "font-size: 50%;"), subtitle = my_entrez_id$Count, icon = tags$i(icon("list"), style = "font-size: 75%;"),color = "blue")}) )
+  observeEvent(eventExpr = input$start, handlerExpr = output$query <- renderValueBox({valueBox(value = tags$p("Pubmed query", style = "font-size: 50%;"), subtitle = my_entrez_id$QueryTranslation %>% print(quote = FALSE), icon = tags$i(icon("search"), style = "font-size: 75%;"),color = "light-blue")}) )
+  observeEvent(eventExpr = input$start, handlerExpr = output$resultcount <- renderValueBox({valueBox(value = tags$p("Results found", style = "font-size: 50%;"), subtitle = my_entrez_id$Count, icon = tags$i(icon("list"), style = "font-size: 75%;"),color = "light-blue")}) )
   
 }
 
