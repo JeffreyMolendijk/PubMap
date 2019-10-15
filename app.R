@@ -284,9 +284,9 @@ server <- function(input, output, session) {
                
 )
   
-  observeEvent(eventExpr = input$start, handlerExpr = output$table <- DT::renderDataTable( {new_PM_df %>% select(jabbrv ,journal) %>% group_by(jabbrv ,journal) %>% tally(sort = TRUE) %>% purrr::set_names(., c("Journal","Journal abbreviation", "Count")) %>% DT::datatable(., options = list(scrollY = "300px", paging = FALSE, searching = FALSE, lengthChange = FALSE))} ) )
+  observeEvent(eventExpr = input$start, handlerExpr = output$table <- DT::renderDataTable( {new_PM_df %>% select(jabbrv ,journal) %>% group_by(jabbrv ,journal) %>% tally(sort = TRUE) %>% purrr::set_names(., c("Journal","Journal abbreviation", "Count")) %>% DT::datatable(., options = list(scrollY = "300px", paging = FALSE, searching = FALSE, lengthChange = FALSE), rownames = FALSE)} ) )
   
-  observeEvent(eventExpr = input$start, handlerExpr = output$tablekeyword <- DT::renderDataTable( {new_PM_df$keywords %>% strsplit(., split = ";") %>% unlist %>% tolower() %>% as.data.frame() %>% rlang::set_names("keyword") %>% group_by(keyword) %>% summarise(counts = n()) %>% filter(!is.na(counts)) %>% arrange(desc(counts))%>% purrr::set_names(., c("Keyword", "Count")) %>% DT::datatable(., options = list(scrollY = "300px", paging = FALSE, searching = FALSE, lengthChange = FALSE))} )) 
+  observeEvent(eventExpr = input$start, handlerExpr = output$tablekeyword <- DT::renderDataTable( {new_PM_df$keywords %>% strsplit(., split = ";") %>% unlist %>% tolower() %>% as.data.frame() %>% rlang::set_names("keyword") %>% group_by(keyword) %>% summarise(counts = n()) %>% filter(!is.na(counts)) %>% arrange(desc(counts))%>% purrr::set_names(., c("Keyword", "Count")) %>% DT::datatable(., options = list(scrollY = "300px", paging = FALSE, searching = FALSE, lengthChange = FALSE), rownames = FALSE)} )) 
       
   observeEvent(eventExpr = input$start, handlerExpr = output$mymap <- renderLeaflet({
     leaflet(data = new_PM_df) %>% addTiles() %>% addMarkers(~meanlong, ~meanlat, popup = ~as.character(countrymatch), label = ~as.character(countrymatch), clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE))
