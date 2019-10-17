@@ -117,7 +117,7 @@ my_entrez_id <- get_pubmed_ids(search)
 my_entrez_id$Count
 my_entrez_id$QueryTranslation %>% print(quote = FALSE)
 
-my_entrez_data <- fetch_pubmed_data(my_entrez_id, retmax = 1000)
+my_entrez_data <- fetch_pubmed_data(my_entrez_id, retmax = 5)
 
 #table_articles_byauth uses articles_to_list as one of the first steps. this would convert a massive list into a single list.
 #Instead we can manually convert large my_entrez_data into smaller chunks, e.g.  1:100.
@@ -302,9 +302,9 @@ server <- function(input, output, session) {
 }
 
 
-ui <- dashboardPage(
+ui <- dashboardPage(title = "PubMap, for confused researchers!",
   dashboardHeader(title = tags$a(href='http://github.com/jeffreymolendijk',
-                                 tags$img(src='logowhite.svg', style="padding-top:0px; padding-bottom:7px", height = 40, width = "auto", align = "center"))),
+                                 tags$img(src='logowhite.svg', style="padding-top:0px; padding-bottom:5px", height = 40, width = "auto", align = "center"))),
   dashboardSidebar(sidebarMenu(menuItem("Read me", tabName = "README", icon = icon("readme")),
                                menuItem("Analysis", tabName = "Analysis", icon = icon("chart-bar")), hr()),
                    textInput(inputId = "pubmedsearch", label = "Pubmed search", value = '"learning analytics"'), 
