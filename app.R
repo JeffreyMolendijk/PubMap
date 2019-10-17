@@ -303,7 +303,8 @@ server <- function(input, output, session) {
 
 
 ui <- dashboardPage(
-  dashboardHeader(title = "PubMap"),
+  dashboardHeader(title = tags$a(href='http://github.com/jeffreymolendijk',
+                                 tags$img(src='logowhite.svg', style="padding-top:0px; padding-bottom:7px", height = 40, width = "auto", align = "center"))),
   dashboardSidebar(sidebarMenu(menuItem("Read me", tabName = "README", icon = icon("readme")),
                                menuItem("Analysis", tabName = "Analysis", icon = icon("chart-bar")), hr()),
                    textInput(inputId = "pubmedsearch", label = "Pubmed search", value = '"learning analytics"'), 

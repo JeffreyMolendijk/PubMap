@@ -8,11 +8,11 @@ PubMap is a Shiny app to analyze PubMed queries to highlight journals, keywords 
 
 
 ## User guide
-1. Define the search topic as you would do in a PubMed search
-2. Define the publishing date (I would recommend recent years to speed up the analysis)
-3. Click the submit button
-4. Navigate to the Analysis panel
-5. Once PubMap is finished analyzing it will create a table and results panel
+1. Define the search topic as you would do in a PubMed search. Double quotation marks are added for exact matching.
+2. Define the publishing year. A range can be specified using a colon (e.g. 2015:2019). 
+3. Click the submit button.
+4. Navigate to the Analysis panel.
+5. Once PubMap is finished analyzing it will create a table and results panel.
 
 
 ## Result interpretation
@@ -35,3 +35,8 @@ https://www.ncbi.nlm.nih.gov/books/NBK25497/#chapter2.Usage_Guidelines_and_Requi
 PubMap can be slow depending on the number of results found on PubMed, we recommend using a single year to test your query first. 
 Quotation marks are placed around the PubMed Search input panel. "Protein biomarker" would search only for articles containing this combination of words.
 Searching for Protein biomarker (without quotes) would give you all results containing either protein or biomarker.
+
+## Attribution
+The paper symbol of the PubMap logo was created by Cantasia from Noun Project. (https://thenounproject.com/icon/2304321/)
+The map symbol of the PubMap logo was created by Allesandro Suraci from Noun Project. (https://thenounproject.com/icon/3995/)
+Both symbols are under a CC BY 3.0 license
