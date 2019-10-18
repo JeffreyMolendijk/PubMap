@@ -97,97 +97,6 @@ chopchop_to_df = function (pubmed_data, included_authors = "all", max_chars = 50
 }
 
 
-#collect pubmed ids using easypubmeds get_pubmed_ids
-#function does not allow a maximum list over 100, but the search string can be modified using &retmax=100 to increase to 100.
-#the following search finds the top 
-#my_entrez_id <- get_pubmed_ids('lipidomics AND "2019"[PDAT]&retmax=10&tool=pubmap&email=testuser1@live.com')
-#my_entrez_id <- get_pubmed_ids('lipidomics microbiome AND "2010"[PDAT]:"2019"[PDAT]&retmax=10&tool=pubmap&email=testuser1@live.com')
-#my_entrez_id <- get_pubmed_ids('"learning analytics"&tool=pubmap&email=testuser1@live.com')
-
-pmsearch.key = '"learning analytics"'
-pmsearch.year = '"2019"'
-pmsearch.tool = 'pubmap'
-pmsearch.email = 'testuser1@live.com'
-
-search = pmquery(pmsearch.key, pmsearch.year, pmsearch.tool, pmsearch.email)
-
-
-my_entrez_id <- get_pubmed_ids(search)
-
-my_entrez_id$Count
-my_entrez_id$QueryTranslation %>% print(quote = FALSE)
-
-my_entrez_data <- fetch_pubmed_data(my_entrez_id, retmax = 5)
-
-#table_articles_byauth uses articles_to_list as one of the first steps. this would convert a massive list into a single list.
-#Instead we can manually convert large my_entrez_data into smaller chunks, e.g.  1:100.
-#Next we can alter table_articles_byauth to run on testlists (previously converted data)
-
-testlist = articles_to_list(my_entrez_data, encoding = "UTF-8")
-testsplit = split(1:length(testlist), ceiling(seq_along(1:length(testlist))/300) )
-
-resultlist = list()
-
-for(i in 1:length(testsplit)){
-  print(i)
-  
-
-  resultlist[[i]] <- chopchop_to_df(pubmed_data = testlist[testsplit[[i]]], 
-                                included_authors = "first", 
-                                max_chars = 0, 
-                                encoding = "ASCII")
-
-  
-}
-
-new_PM_df = do.call(bind_rows, resultlist)
-
-
-
-
-new_PM_df$newaddress <- new_PM_df$address %>% gsub("[[:punct:]]","", .) %>% strsplit(split = " ")
-
-new_PM_df$countrymatch = "NULL"
-new_PM_df$citymatch = "NULL"
-
-
-for(i in 1:nrow(new_PM_df)){
-
-  country = (world.cities$country.etc %in% (new_PM_df$newaddress[i] %>% unlist)) %>% world.cities$country.etc[.] %>% 
-    table %>% sort(., decreasing = TRUE) %>% head(1) %>% names()
-  
-  if(is.null(country)){country = "NULL"}
-  
-  new_PM_df$countrymatch[i] = country
-  
-  
-  city = (world.cities$name %in% (new_PM_df$newaddress[i] %>% unlist)) %>% world.cities$name[.] %>% 
-    table %>% sort(., decreasing = TRUE) %>% head(1) %>% names()
-  
-  if(is.null(city)){city = "NULL"}
-  
-  new_PM_df$citymatch[i] = city  
-}
-
-
-
-new_PM_df = world.cities %>% group_by(country.etc) %>% summarise(meanlat = mean(lat), meanlong = mean(long)) %>% 
-            left_join(x = new_PM_df, y =  ., by = c("countrymatch" = "country.etc"))
-
-new_PM_df = world.cities %>% group_by(name) %>% summarise(citymeanlat = mean(lat), citymeanlong = mean(long)) %>% 
-  left_join(x = new_PM_df, y =  ., by = c("citymatch" = "name"))
-
-#To do >
-leaflet(data = new_PM_df) %>% addTiles() %>% addMarkers(~citymeanlong, ~citymeanlat, popup = ~as.character(citymatch), label = ~as.character(citymatch), clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE))
-
-
-
-
-
-
-
-
-
 
 
 
@@ -205,11 +114,17 @@ server <- function(input, output, session) {
 
     progress$set(value = 1, 
                  message = 'Contacting PubMed',
-                 detail = 'This may take a while...')
+                 detail = 'Retrieving information')
     
     
   search = pmquery(input$pubmedsearch, input$year, 'pubmap', input$email)
   my_entrez_id <<- get_pubmed_ids(search)
+  
+  if(my_entrez_id$Count == 0){print("no matches")
+    progress$close()
+    showNotification(ui = "No results found for this query", action = NULL, duration = 10, closeButton = TRUE,
+                     id = NULL, type = c("error"),
+                     session = getDefaultReactiveDomain())} else {
   
   my_entrez_data <- fetch_pubmed_data(my_entrez_id, retmax = 900)
   
@@ -276,12 +191,14 @@ server <- function(input, output, session) {
   new_PM_df = world.cities %>% group_by(name) %>% summarise(citymeanlat = mean(lat), citymeanlong = mean(long)) %>% 
     left_join(x = new_PM_df, y =  ., by = c("citymatch" = "name"))
   
-  print("Done")
+  showNotification(ui = "Your analysis has finished, please open the analysis page!", action = NULL, duration = 10, closeButton = TRUE,
+                   id = NULL, type = c("error"),
+                   session = getDefaultReactiveDomain())
   
   new_PM_df <<- new_PM_df
   
   }
-               
+  }              
 )
   
   observeEvent(eventExpr = input$start, handlerExpr = output$table <- DT::renderDataTable( {new_PM_df %>% select(jabbrv ,journal) %>% group_by(jabbrv ,journal) %>% tally(sort = TRUE) %>% purrr::set_names(., c("Journal","Journal abbreviation", "Count")) %>% DT::datatable(., options = list(scrollY = "300px", paging = FALSE, searching = FALSE, lengthChange = FALSE), rownames = FALSE)} ) )
@@ -308,10 +225,20 @@ ui <- dashboardPage(title = "PubMap, for confused researchers!",
   dashboardSidebar(sidebarMenu(menuItem("Read me", tabName = "README", icon = icon("readme")),
                                menuItem("Analysis", tabName = "Analysis", icon = icon("chart-bar")), hr()),
                    textInput(inputId = "pubmedsearch", label = "Pubmed search", value = '"learning analytics"'), 
-                   textInput(inputId = "year", label = "Publication year", value = '2019'),
+                   textInput(inputId = "year", label = "Publication year", value = '2018:2019'),
                    textInput(inputId = "email", label = "Your email", value = 'testuser1@live.com'),
                    actionButton("start", "Submit")),
-  dashboardBody(
+  dashboardBody(tags$head(
+    tags$style(
+      "body{
+    min-height: 611px;
+    height: auto;
+    max-width: 1100px;
+    margin: auto;
+    background-color: darkslategray
+        }"
+    )
+  ),
     tabItems(
       tabItem(tabName = "Analysis", verticalLayout(fluidRow( column(8, offset = 0, valueBoxOutput("query", width = 12)), column(4, offset = 0, valueBoxOutput("resultcount", width = 12)) ),
                                                    tabBox(width = 12, title = "Table results", tabPanel("Journals", DT::dataTableOutput("table")), tabPanel("Keywords", DT::dataTableOutput("tablekeyword"))),
